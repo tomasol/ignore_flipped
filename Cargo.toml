@@ -1,5 +1,5 @@
 [package]
-name = "ignore"
+name = "ignore_flipped"
 version = "0.4.18"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = """
@@ -15,12 +15,12 @@ license = "Unlicense/MIT"
 edition = "2018"
 
 [lib]
-name = "ignore"
+name = "ignore_flipped"
 bench = false
 
 [dependencies]
 crossbeam-utils = "0.8.0"
-globset = { version = "0.4.7", path = "../globset" }
+globset = "0.4.7"
 lazy_static = "1.1"
 log = "0.4.5"
 memchr = "2.1"

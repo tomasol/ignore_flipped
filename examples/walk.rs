@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::thread;
 
-use ignore::WalkBuilder;
+use ignore_flipped::WalkBuilder;
 use walkdir::WalkDir;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
         walker.run(|| {
             let tx = tx.clone();
             Box::new(move |result| {
-                use ignore::WalkState::*;
+                use ignore_flipped::WalkState::*;
 
                 tx.send(DirEntry::Y(result.unwrap())).unwrap();
                 Continue
@@ -54,7 +54,7 @@ fn main() {
 
 enum DirEntry {
     X(walkdir::DirEntry),
-    Y(ignore::DirEntry),
+    Y(ignore_flipped::DirEntry),
 }
 
 impl DirEntry {

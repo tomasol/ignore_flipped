@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ignore::gitignore::{Gitignore, GitignoreBuilder};
+use ignore_flipped::gitignore::{Gitignore, GitignoreBuilder};
 
 const IGNORE_FILE: &'static str =
     "tests/gitignore_matched_path_or_any_parents_tests.gitignore";
