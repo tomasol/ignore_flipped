@@ -490,6 +490,8 @@ pub struct WalkBuilder {
     threads: usize,
     skip: Option<Arc<Handle>>,
     filter: Option<Filter>,
+    /// Whether to output files matched by ignore matcher.
+    flip_result: bool,
 }
 
 #[derive(Clone)]
@@ -513,6 +515,7 @@ impl fmt::Debug for WalkBuilder {
             .field("follow_links", &self.follow_links)
             .field("threads", &self.threads)
             .field("skip", &self.skip)
+            .field("flip_result", &self.flip_result)
             .finish()
     }
 }
@@ -536,6 +539,7 @@ impl WalkBuilder {
             threads: 0,
             skip: None,
             filter: None,
+            flip_result: false,
         }
     }
 
@@ -585,6 +589,7 @@ impl WalkBuilder {
             max_filesize: self.max_filesize,
             skip: self.skip.clone(),
             filter: self.filter.clone(),
+            flip_result: self.flip_result,
         }
     }
 
@@ -604,6 +609,7 @@ impl WalkBuilder {
             threads: self.threads,
             skip: self.skip.clone(),
             filter: self.filter.clone(),
+            flip_result: self.flip_result,
         }
     }
 
@@ -902,6 +908,14 @@ impl WalkBuilder {
         self.filter = Some(Filter(Arc::new(filter)));
         self
     }
+
+    /// Whether to output files matched by ignore matcher.
+    ///
+    /// This is disabled by default.
+    pub fn flip_result(&mut self, yes: bool) -> &mut WalkBuilder {
+        self.flip_result = yes;
+        self
+    }
 }
 
 /// Walk is a recursive directory iterator over file paths in one or more
@@ -918,6 +932,8 @@ pub struct Walk {
     max_filesize: Option<u64>,
     skip: Option<Arc<Handle>>,
     filter: Option<Filter>,
+    /// Whether to output files matched by ignore matcher.
+    flip_result: bool,
 }
 
 impl Walk {
@@ -1015,14 +1031,14 @@ impl Iterator for Walk {
                         // Still need to push this on the stack because
                         // we'll get a WalkEvent::Exit event for this dir.
                         // We don't care if it errors though.
-                        let (igtmp, _) = self.ig.add_child(ent.path());
-                        self.ig = igtmp;
-                        continue;
                     }
+
                     let (igtmp, err) = self.ig.add_child(ent.path());
                     self.ig = igtmp;
-                    ent.err = err;
-                    return Some(Ok(ent));
+                    if should_skip == self.flip_result {
+                        ent.err = err;
+                        return Some(Ok(ent));
+                    }
                 }
                 Ok(WalkEvent::File(ent)) => {
                     let ent = DirEntry::new_walkdir(ent, None);
@@ -1030,10 +1046,10 @@ impl Iterator for Walk {
                         Err(err) => return Some(Err(err)),
                         Ok(should_skip) => should_skip,
                     };
-                    if should_skip {
-                        continue;
+
+                    if should_skip == self.flip_result {
+                        return Some(Ok(ent));
                     }
-                    return Some(Ok(ent));
                 }
             }
         }
@@ -1196,6 +1212,8 @@ pub struct WalkParallel {
     threads: usize,
     skip: Option<Arc<Handle>>,
     filter: Option<Filter>,
+    /// Whether to output files matched by ignore matcher.
+    flip_result: bool,
 }
 
 impl WalkParallel {
@@ -1206,6 +1224,9 @@ impl WalkParallel {
     where
         F: FnMut() -> FnVisitor<'s>,
     {
+        if self.flip_result {
+            unimplemented!("Parallel execution with flip_result is not implemented");
+        }
         self.visit(&mut FnBuilder { builder: mkf })
     }
 
@@ -1977,6 +1998,24 @@ mod tests {
         let mut builder = WalkBuilder::new(td.path());
         builder.add_custom_ignore_filename(&custom_ignore);
         assert_paths(td.path(), &builder, &["bar", "a", "a/bar"]);
+    }
+
+    #[test]
+    fn flip_result() {
+        let td = tmpdir();
+        mkdirp(td.path().join(".git"));
+        mkdirp(td.path().join("a"));
+        wfile(td.path().join(".gitignore"), "foo");
+        wfile(td.path().join("foo"), "");
+        wfile(td.path().join("a/foo"), "");
+        wfile(td.path().join("bar"), "");
+        wfile(td.path().join("a/bar"), "");
+        let prefix = td.path();
+        let mut builder = WalkBuilder::new(td.path());
+        builder.hidden(false).flip_result(true);
+        let expected = &["foo", "a/foo"];
+        let got = walk_collect(prefix, &builder);
+        assert_eq!(got, mkpaths(expected), "single threaded");
     }
 
     #[test]

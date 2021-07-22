@@ -1,13 +1,14 @@
-ignore
+ignore_flipped
 ======
-The ignore crate provides a fast recursive directory iterator that respects
-various filters such as globs, file types and `.gitignore` files. This crate
-also provides lower level direct access to gitignore and file type matchers.
-
-[![Build status](https://github.com/BurntSushi/ripgrep/workflows/ci/badge.svg)](https://github.com/BurntSushi/ripgrep/actions)
-[![](https://img.shields.io/crates/v/ignore.svg)](https://crates.io/crates/ignore)
+Fork of [ignore](https://crates.io/crates/ignore) crate, that
+aims to add support for flipping the output - allowing to
+iterate over files that are ignored.
 
 Dual-licensed under MIT or the [UNLICENSE](https://unlicense.org/).
+
+### Status
+WIP. Parallel execution is not implemented.
+Tested only
 
 ### Documentation
 
@@ -19,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ignore = "0.4"
+ignore_flipped = "0.4"
 ```
 
 ### Example
@@ -29,11 +30,13 @@ recursively traverse the current directory while automatically filtering out
 files and directories according to ignore globs found in files like
 `.ignore` and `.gitignore`:
 
+By default, the recursive directory iterator will ignore hidden files and
+directories. This can be disabled by building the iterator with `WalkBuilder`.
 
 ```rust,no_run
-use ignore::Walk;
+use ignore_flipped::WalkBuilder;
 
-for result in Walk::new("./") {
+for result in WalkBuilder::new("./").hidden(false).flip_result(true).build() {
     // Each item yielded by the iterator is either a directory entry or an
     // error, so either print the path or the error.
     match result {
@@ -43,17 +46,5 @@ for result in Walk::new("./") {
 }
 ```
 
-### Example: advanced
-
-By default, the recursive directory iterator will ignore hidden files and
-directories. This can be disabled by building the iterator with `WalkBuilder`:
-
-```rust,no_run
-use ignore::WalkBuilder;
-
-for result in WalkBuilder::new("./").hidden(false).build() {
-    println!("{:?}", result);
-}
-```
-
-See the documentation for `WalkBuilder` for many other options.
+Result is list of files (including hidden files) that are blacklisted by files
+like `.ignore` and `.gitignore`.
